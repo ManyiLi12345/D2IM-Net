@@ -26,11 +26,10 @@ def unit_normal_map(normal_map):
     return normal_map
 
 if __name__ == "__main__":
-    import utils
-    config = utils.get_args()
-    catlist = config.catlist
-    normal_dir = config.data_dir + 'normal/'
-    output_dir = config.data_dir + 'normal_processed/'
+    catlist = ['03001627', '02691156', '02828884', '02933112', '03211117', '03636649', '03691459', '04090263', '04256520', '04379243', '04530566','02958343', '04401088']
+    data_dir = './data/'
+    normal_dir = data_dir + 'normal/'
+    output_dir = data_dir + 'normal_processed/'
 
     for cat in catlist:
         model_ids = os.listdir(normal_dir+cat)
@@ -39,6 +38,9 @@ if __name__ == "__main__":
             mid = model_ids[i]
             input_folder = normal_dir + cat + '/' + mid + '/easy/' 
             output_folder = output_dir + cat + '_easy/' + mid + '/'
+
+            if(not os.path.exists(output_folder)):
+                os.makedirs(output_folder)
                
             for viewid in range(36):
                 normalfn = input_folder + str(viewid).zfill(2) + '.png'

@@ -50,11 +50,10 @@ def estimate_density(source_filename, target_filename):
     nf.close()
 
 if __name__ == "__main__":
-    import utils
-    config = utils.get_args()
-    catlist = config.catlist
-    h5_dir = config.data_dir + 'h5/'
-    output_dir = config.data_dir + 'SDF_density/'
+    catlist = ['03001627', '02691156', '02828884', '02933112', '03211117', '03636649', '03691459', '04090263', '04256520', '04379243', '04530566','02958343', '04401088']
+    data_dir = './data/'
+    h5_dir = data_dir + 'SDF_v1/'
+    output_dir = data_dir + 'SDF_density/'
 
     for cat in catlist:
         model_ids = os.listdir(h5_dir+cat)
@@ -69,4 +68,4 @@ if __name__ == "__main__":
             output_filename = output_folder + 'density.h5'
             estimate_density(input_filename, output_filename)
             print('processing: %d/%d, %s done.' % (i, shape_num, mid))
-   
+        

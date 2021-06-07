@@ -5,13 +5,9 @@ Our training data includes the images, normal maps and the 3D supervision, all d
 
 ```
 python ./preprocessing/process_normals.py
-python ./estimate_density.py # pre-compute the point sampling density for our weighted sampling strategy during training.
-python ./estimate_gradient.py # pre-compute the SDF gradients to classify the front-side and back-side nearby points.
+python ./preprocessing/estimate_density.py # pre-compute the point sampling density for our weighted sampling strategy during training.
+python ./preprocessing/estimate_gradient.py # pre-compute the SDF gradients to classify the front-side and back-side nearby points.
 ```
-
-1. Normal map.
-2. Estimate the point sapmling density for the weighted sampling during training.
-3. Estimate the SDF gradients to classify the front-side and back-side nearby points.
 
 ## Training and testing
 

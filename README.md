@@ -1,7 +1,7 @@
 # D2IM-Net: learning detail disentangled implicit fields from single images
 
 ## Data preparation
-Our training data includes the images, normal maps and the 3D supervision, all downloaded from datasets provided by DISN. The datasets need to be pre-processed for our training.
+Our training data includes the images, normal maps and the 3D supervision, all downloaded from datasets provided by [DISN](https://github.com/Xharlie/ShapenetRender_more_variation). The datasets need to be pre-processed for our training.
 
 ```
 python ./preprocessing/process_normals.py

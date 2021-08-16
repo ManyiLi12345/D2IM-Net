@@ -97,7 +97,7 @@ def test_all(config):
             #cam_id = np.mod(index, 36) # a "random" view for testing.
             #index = index + 1
             test_one_without_gttransmat(CAMmodel, SDFmodel, testset, gridworldcoords, cat_id, shape_id, cam_id, output_dir, config)  
-            exit()
+            #exit()
 
 if __name__ == "__main__":
     config = utils.get_args()

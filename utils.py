@@ -8,7 +8,7 @@ from argparse import ArgumentParser
 def get_args():
     parser = ArgumentParser(description='D2IM-Net')
     parser.add_argument('--cuda', type=bool, default=True)
-    parser.add_argument('--gpu', type=int, default=1)
+    parser.add_argument('--gpu', type=int, default=0)
     parser.add_argument('--plot_every_batch', type=int, default=10)
     parser.add_argument('--save_every_epoch', type=int, default=20)
     parser.add_argument('--test_every_epoch', type=int, default=20)
@@ -30,11 +30,11 @@ def get_args():
     parser.add_argument('--exp_name', type=str, default='d2im')
     
     parser.add_argument('--data_dir', default='/local-scratch/manyi/SVR_detail/data/DISN_split/')
-    parser.add_argument('--h5_dir', default='/local-scratch/manyi/SVR_detail/data/SDF_withGradient_v1/')
+    parser.add_argument('--h5_dir', default='/local-scratch/manyi/SVR_detail/data/SDF_withGradient/')
     parser.add_argument('--density_dir', default='/local-scratch/manyi/SVR_detail/data/SDF_density/')
     parser.add_argument('--cam_dir', default='/local-scratch/manyi/SVR_detail/data/image/')
     parser.add_argument('--image_dir', default='/local-scratch/manyi/SVR_detail/data/image/')
-    parser.add_argument('--normal_dir', default='/local-scratch/manyi/SVR_detail/data/normal/')
+    parser.add_argument('--normal_dir', default='/local-scratch/manyi/SVR_detail/data/normal_processed/')
     
     parser.add_argument('--model_dir', default='./ckpt/models')
     parser.add_argument('--output_dir', default='./ckpt/outputs')

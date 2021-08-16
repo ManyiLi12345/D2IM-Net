@@ -196,6 +196,7 @@ class D2IM_Net(nn.Module):
             base_values = self.im_decoder(featvecs, points)
 
         # compute delta
+        #gradients = torch.autograd.grad(base_values, points, grad_outputs=grad_outputs, create_graph=True)
         vecs = self.cam_zvec.unsqueeze(0)
         vecs = self.project_vector_to_worldview(vecs, transmat)
         vecs = nn.functional.normalize(vecs, p=2, dim=2)*0.03

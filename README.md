@@ -19,7 +19,7 @@ and
 ```
 python test.py
 ```
-For the default settings, please refer to utils.py.
+To change the default settings, please see utils.py.
 
 During training, it saves the reconstructions of some selected images with GT camera after every a few epochs, in "./ckpt/outputs/".
 
@@ -27,4 +27,14 @@ The test script is to reconstruct from the input image with inferred camera. Bef
 
 
 ## Citation
-
+If you find this work useful for your research, please cite our paper using the bibtex below:
+```
+@InProceedings{d2im_2021_cvpr,
+    author    = {Li, Manyi and Zhang, Hao},
+    title     = {d$^2$im-net: learning detail disentangled implicit fields from single images},
+    booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+    month     = {June},
+    year      = {2021},
+    pages     = {10246-10255}
+}
+```

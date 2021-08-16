@@ -19,13 +19,6 @@ class SDFDataset(data.Dataset):
         self.datalist = []
         self.datasize = 0
 
-        self.image_dir = config.data_dir + 'image/'
-        self.normal_dir = config.data_dir + 'normal_processed/'
-        self.h5_dir = config.data_dir + 'SDF_with_gradient/
-        self.density_dir = config.data_dir + 'SDF_density/'
-        self.check_trainingset_exists()
-
-
         # only load the training set or test set
         if(not (status=='test' or status=='train')):
             return
@@ -36,9 +29,9 @@ class SDFDataset(data.Dataset):
             filename = config.data_dir + cat_id + '_' + status + '.lst'
             shape_ids = self.read_shape_ids_from_file(filename)
             for shape_id in shape_ids:
-                rgb_fn = config.image_dir + cat_id + '/' + shape_id + '/easy/'
+                rgb_fn = config.image_dir + cat_id + '_easy/' + shape_id + '/'
                 normal_fn = config.normal_dir + cat_id + '_easy/' + shape_id + '/'
-                cam_fn = config.image_dir + cat_id + '/' + shape_id + '/easy/rendering_metadata.txt'
+                cam_fn = config.image_dir + cat_id + '_easy/' + shape_id + '/rendering_metadata.txt'
                 h5_fn = config.h5_dir + cat_id + '/' + shape_id + '/data.h5'
                 density_fn = config.density_dir + cat_id + '/' + shape_id + '/density.h5'
                 if(os.path.exists(h5_fn) and os.path.exists(cam_fn) and os.path.exists(rgb_fn)):
@@ -59,19 +52,6 @@ class SDFDataset(data.Dataset):
         self.datalist = datalist
         self.datasize = len(self.datalist)
         print('Finished loading the %s dataset: %d data.'%(status, self.datasize))
-
-    def check_trainingset_exists(self):
-        if(not os.path.exists(self.image_dir)):
-            print('Error! %s not exist!'%(self.image_dir))
-        if(not os.path.exists(self.normal_dir)):
-            print('Error! %s not exist!'%(self.normal_dir))
-            print('Please run ./preprocessing/process_normals.py!')
-        if(not os.path.exists(self.h5_dir)):
-            print('Error! %s not exist!'%(self.h5_dir))
-            print('Please run ./preprocessing/estimate_gradient.py!')
-        if(not os.path.exists(self.density_dir)):
-            print('Error! %s not exist!'%(self.density_dir))
-            print('Please run ./preprocessing/estimate_density.py!')
 
     def __len__(self):
         return self.datasize
@@ -121,6 +101,11 @@ class SDFDataset(data.Dataset):
         return points, values, gradients, mc_image, transmat, scale
 
     def get_testdata(self, cat_id, shape_id, cam_id):
+        #index = 0
+        #data = self.datalist[index]
+        #cat_id, shape_id = data['cat_id'], data['shape_id']
+        #cam_id = 0
+        
         rgb_fn = self.config.image_dir + cat_id + '_easy/' + shape_id + '/'
         normal_fn = self.config.normal_dir + cat_id + '_easy/' + shape_id + '/'
         cam_fn = self.config.image_dir + cat_id + '_easy/' + shape_id + '/rendering_metadata.txt'

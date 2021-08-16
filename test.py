@@ -7,7 +7,6 @@ import utils
 from models.D2IM import D2IM_Net
 from models.CamNet import CamNet
 
-import datasets.DataUtils as DataUtils
 from datasets.SDFDataset import SDFDataset as Dataset
 
 """ test one data and output the extracted iso-surface """
@@ -68,12 +67,13 @@ def test_all(config):
     
     epoch = 0
     CAM_pretrain_fn = config.model_dir+'/CAMmodel.pt.tar'
-    SDF_pretrain_fn = config.model_dir+'/model300.pt.tar'
+    SDF_pretrain_fn = config.model_dir+'/best_model.pt.tar'
     if(config.load_pretrain and os.path.exists(CAM_pretrain_fn) and os.path.exists(SDF_pretrain_fn)):
-        _, CAMmodel, _, _ = utils.load_cam_checkpoint(CAM_pretrain_fn, CAMmodel, None)
+        _, CAMmodel, _, _ = utils.load_checkpoint(CAM_pretrain_fn, CAMmodel, None)
         epoch, SDFmodel, _, _ = utils.load_checkpoint(SDF_pretrain_fn, SDFmodel, None)
     else:
         print('pre-trained model doesnt exist!')
+    
     
     output_dir = config.output_dir+'/test_'+str(epoch+1)
     if(not os.path.exists(output_dir)):
@@ -97,7 +97,7 @@ def test_all(config):
             #cam_id = np.mod(index, 36) # a "random" view for testing.
             #index = index + 1
             test_one_without_gttransmat(CAMmodel, SDFmodel, testset, gridworldcoords, cat_id, shape_id, cam_id, output_dir, config)  
-            
+            exit()
 
 if __name__ == "__main__":
     config = utils.get_args()

@@ -127,7 +127,7 @@ class CamNet(nn.Module):
         pred_translation_inv = pred_translation_inv.matmul(R_camfix_inv)
         pred_translation_inv = pred_translation_inv * (-1.0)
         
-        pred_rotation_mat_inv = self.transform_pointsaa(pred_rotation)
+        pred_rotation_mat_inv = self.compute_rotation_matrix_from_ortho6d(pred_rotation)
         pred_transmat = torch.cat([pred_rotation_mat_inv, pred_translation_inv], dim=1)
         
         return pred_transmat

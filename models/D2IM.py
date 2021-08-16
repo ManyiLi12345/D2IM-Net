@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.utils.data
 
+
 # D2IM setting
 from models.Nets import ResEncoder as D2IM_ImageEncoder
 from models.Nets import ImnetDecoder as D2IM_IMDecoder
@@ -12,11 +13,12 @@ class D2IM_Net(nn.Module):
     def __init__(self, config):
         super(D2IM_Net, self).__init__()
         # network parameters
-        self.exp_name = config.exp_name
         self.img_res = config.img_res
         self.model_dir = config.model_dir
+        self.exp_name = config.exp_name
         self.iscuda = config.cuda
 
+        # network modules
         if(config.exp_name=='d2im'):
             self.image_encoder = D2IM_ImageEncoder(self.model_dir)
             self.detail_decoder = D2IM_DetailDecoder()
@@ -40,8 +42,8 @@ class D2IM_Net(nn.Module):
     """ Transform vectors from worldview to camview"""
     def project_vector_to_camview(self, vecs, transmat):
         plus = torch.zeros((vecs.size(0),vecs.size(1),1)).cuda()
-        camvecs = torch.cat([vecs,plus], dim=2)
-        camvecs = torch.matmul(camvecs, transmat)
+        worldvecs = torch.cat([vecs,plus], dim=2)
+        camvecs = torch.matmul(worldvecs, transmat)
         return camvecs[:,:,:3]
 
     """ Transform vectors from camview to worldview"""
@@ -49,10 +51,9 @@ class D2IM_Net(nn.Module):
         plus = torch.tensor([[[0.0], [0.0], [0.0], [1.0]]]).cuda()
         transmat = torch.cat([transmat, plus], dim=2)
         inv_transmat = torch.inverse(transmat)
-
         plus = torch.zeros((vecs.size(0),vecs.size(1),1)).cuda()
-        worldvecs = torch.cat([vecs,plus], dim=2)
-        worldvecs = torch.matmul(worldvecs, inv_transmat)
+        camvecs = torch.cat([vecs,plus], dim=2)
+        worldvecs = torch.matmul(camvecs, inv_transmat)
         return worldvecs[:,:,:3]
 
     """ Project 3D points to 2D pixels """
@@ -60,15 +61,14 @@ class D2IM_Net(nn.Module):
         plus = torch.ones((points.size(0),points.size(1),1)).cuda()
         homopoints = torch.cat([points,plus], dim=2)
         
-        campoints = torch.matmul(homopoints, transmat)
-        campoints[:,:,0] = torch.div(campoints[:,:,0],campoints[:,:,2])
-        campoints[:,:,1] = torch.div(campoints[:,:,1],campoints[:,:,2])
+        homopoints = torch.matmul(homopoints, transmat)
+        homopoints[:,:,0] = torch.div(homopoints[:,:,0],homopoints[:,:,2])
+        homopoints[:,:,1] = torch.div(homopoints[:,:,1],homopoints[:,:,2])
 
-        pixels = campoints[:,:,:2] # in range [0,img_res]
-        uv = pixels*2.0/self.img_res - 1.0 # in range [-1,1]
-        depth = campoints[:,:,2]
+        pixels = homopoints[:,:,:2] 
+        uv = pixels*2.0/self.img_res - 1.0 # uv in range [-1,1]
+        depth = homopoints[:,:,2]
         
-        # rounding the pixel indices
         pixels = pixels.long()
         pixels_outside = pixels < 0
         pixels = pixels.masked_fill(pixels_outside, 0)
@@ -76,8 +76,8 @@ class D2IM_Net(nn.Module):
         pixels = pixels.masked_fill(pixels_outside, self.img_res-1)
         return uv, pixels, depth
 
-    """ From 2D feature maps to per-point features """
-    """ "uv" in range [-1,1] """
+    """ From 2D feature maps to per-point features based on uv coordinates """
+    """ "gt_uv" in range [-1,1] """
     def project_featmap_by_uv(self, uv, featmap_list):
         feat_list = []
         for featmap in featmap_list:
@@ -89,7 +89,7 @@ class D2IM_Net(nn.Module):
         return pointfeats
 
     """ From 2D feature maps to per-point features based on pixel coordinates """
-    """ pixels in range [0,img_res] """
+    """ gt_pixels in range [0,img_res] """
     def project_featmap_by_px(self, pixels, featmap):
         C = featmap.size(1)
         featmap_res = featmap.size(2)
@@ -105,42 +105,53 @@ class D2IM_Net(nn.Module):
         return pointfeats
 
     def forward(self, points, values, gradients, mc_image, transmat, scale):
-        gt_uv, gt_pixels, gt_depth = self.project_points_to_pixels(points, transmat)
+        # for checking the projection
+        # gt_uv, _, _ = self.project_points_to_pixels(points, transmat)
+        # check_projection(gt_uv, gt_points, gt_values, transmat, mc_image, self.img_res)
+        #exit()
 
-        # image encoding
-        gt_rgba = mc_image[:,:3,:,:]
-        gt_normal = mc_image[:,3:,:,:]
-        featvecs, featmap_list = self.image_encoder(gt_rgba)
-        
+        # image encoder
+        rgba = mc_image[:,:3,:,:]
+        normal = mc_image[:,3:,:,:]
+        featvecs, featmap_list = self.image_encoder(rgba)
+
+        # compute the 2D-3D correspondense
+        uv, pixels, depth = self.project_points_to_pixels(points, transmat)
+
+        # two decoder branches
         if(self.exp_name == 'd2im'):
             base_values = self.im_decoder(featvecs, points)
         pred_disp = self.detail_decoder(featmap_list)
 
         # classify the "front-side" and "back-side" points
-        # based on the SDF gradient direction in the camera's view
-        cam_gradients = self.project_vector_to_camview(gradients, transmat)
-        front_weights = 0.5-torch.sign(cam_gradients[:,:,2].unsqueeze(2))*0.5
-        
+        projected_gradients = self.project_vector_to_camview(gradients, transmat)
+        front_weights = 0.5-torch.sign(projected_gradients[:,:,2].unsqueeze(2))*0.5
         # project the per-point displacements
-        pred_front_disp = pred_disp[:,0,:,:].unsqueeze(1)
-        pred_back_disp = pred_disp[:,1,:,:].unsqueeze(1)
-        pred_point_front_disp = self.project_featmap_by_px(gt_pixels, pred_front_disp)
-        pred_point_back_disp = self.project_featmap_by_px(gt_pixels, pred_back_disp)
+        pred_disp_front = pred_disp[:,0,:,:].unsqueeze(1)
+        pred_disp_back = pred_disp[:,1,:,:].unsqueeze(1)
+        pred_point_disp_front = self.project_featmap_by_px(pixels, pred_disp_front)
+        pred_point_disp_back = self.project_featmap_by_px(pixels, pred_disp_back)
         
         # base_loss for coarse shapes
         loss_base = self.mseloss(base_values, values)
 
-        # sdf_loss
-        front_values = base_values + pred_point_front_disp
+        # sdf_loss for final reconstruction
+        pred_sdf_values = base_values + front_weights*pred_point_disp_front + (1-front_weights)*pred_point_disp_back
+        loss_sdf = self.l1loss(pred_sdf_values, values)
+        '''
+        #front
+        front_values = base_values + pred_point_disp_front
         front_weights = front_weights
         loss_front = torch.sum(front_weights * torch.abs(front_values - values))/torch.sum(front_weights)
-        back_values = base_values + pred_point_back_disp
+        # back
+        back_values = base_values + pred_point_disp_back
         back_weights = 1-front_weights
         loss_back = torch.sum(back_weights * torch.abs(back_values - values))/torch.sum(back_weights)
         loss_sdf = (loss_front+loss_back)*0.5
+        '''
 
         # laplacian_loss
-        pred_normal_map = nn.functional.conv2d(pred_front_disp, self.normal_weight, padding=1)
+        pred_normal_map = nn.functional.conv2d(pred_disp_front, self.normal_weight, padding=1)
         pred_nx_map = pred_normal_map[:,0,:,:].unsqueeze(1)
         pred_ny_map = pred_normal_map[:,1,:,:].unsqueeze(1)
         pred_nx2_map = nn.functional.conv2d(pred_nx_map, self.normal_weight, padding=1)
@@ -149,32 +160,37 @@ class D2IM_Net(nn.Module):
         pred_ny2_map = pred_ny2_map[:,1,:,:].unsqueeze(1)
         pred_n2_map = (pred_nx2_map+pred_ny2_map)/2.0 # laplacian on the 2D displacement
 
-        gt_nx_map = gt_normal[:,2,:,:].unsqueeze(1)
-        gt_ny_map = gt_normal[:,1,:,:].unsqueeze(1)
+        gt_nx_map = normal[:,2,:,:].unsqueeze(1)
+        gt_ny_map = normal[:,1,:,:].unsqueeze(1)
         gt_nx2_map = nn.functional.conv2d(gt_nx_map, self.normal_weight, padding=1)
         gt_nx2_map = gt_nx2_map[:,0,:,:].unsqueeze(1)
         gt_ny2_map = nn.functional.conv2d(gt_ny_map, self.normal_weight, padding=1)
         gt_ny2_map = gt_ny2_map[:,1,:,:].unsqueeze(1)
         gt_n2_map = (gt_nx2_map+gt_ny2_map)/2.0 # gradient on the 2D normal map
         
-        gt_Laplacian = self.project_featmap_by_px(gt_pixels, gt_n2_map)
-        pred_Laplacian = self.project_featmap_by_px(gt_pixels, pred_n2_map)
-        # Note that the gt_Laplacian and pred_Laplacian are not matched so far.
+        gt_Laplacian = self.project_featmap_by_px(pixels, gt_n2_map)
+        pred_Laplacian = self.project_featmap_by_px(pixels, pred_n2_map)
+        # Note that now the gt_Laplacian and pred_Laplacian are not matched.
         # One is "Laplacian w.r.t. 3D coordinates" and the other is "Laplacian w.r.t. 2D coordinates"
         # Next we need to project the Laplacian to 3D. 
+        
         # Note that "Laplacian computation first and then projection" is equavalent to 
         # "Projection first and then Laplacian"
-        # Also, instead of projecting the gt_Laplacian, we operate on the pred_Laplacian, just to obtain a larger loss value.
-        pred_Laplacian = pred_Laplacian*49.0*scale/(2.0*gt_depth.unsqueeze(2))
-        lap_weights = (values<0.1).float()*front_weights
+        # So, instead of projecting the gt_Laplacian (gt_point_n2 = gt_point_n2*(2.0*gt_depth.unsqueeze(2))/(49.0*scale)),
+        # we operate on the pred_Laplacian.
+        # f_u = f_v = F_MM * img_w * scale / SENSOR_SIZE_MM = (35*224*1)/(32). And note the SDF scale = 10 when loading the GT SDF in SDFdataset.py. Thus, 49.0/2.0.
+        pred_Laplacian = pred_Laplacian*49.0*scale/(2.0*depth.unsqueeze(2)) 
+        lap_weights = (values<0.1).float()*front_weights # only consider the points near the front surface
         loss_laplacian = torch.sum(lap_weights * (pred_Laplacian + gt_Laplacian)**2)/torch.sum(lap_weights)
         # "+" because the displacement should be opposite to the surface geometry
+        
         return loss_base, loss_sdf, loss_laplacian
 
-    def inference_sdf_with_detail(self, points, rgb_image, transmat):
-        gt_uv, gt_pixels, _ = self.project_points_to_pixels(points, transmat)
+    def inference_sdf_with_detail(self, points, rgba_image, transmat):
+        # compute the 3D-2D correspondence
+        uv, pixels, _ = self.project_points_to_pixels(points, transmat)
 
-        featvecs, featmap_list = self.image_encoder(rgb_image)
+        featvecs, featmap_list = self.image_encoder(rgba_image)
         pred_disp = self.detail_decoder(featmap_list)
         if(self.exp_name == 'd2im'):
             base_values = self.im_decoder(featvecs, points)
@@ -187,22 +203,16 @@ class D2IM_Net(nn.Module):
         
         # estimate the frontness
         delta_points = points + vecs
-        delta_gt_uv, _, _ = self.project_points_to_pixels(delta_points, transmat)
-        if(self.exp_name == "imnet"):
-            delta_base_values = self.im_decoder(featvecs, delta_points)
-        elif(self.exp_name == "disn"):
-            delta_pointfeats = self.project_featmap_by_uv(delta_gt_uv, featmap_list)
-            delta_global_values, delta_local_values = self.im_decoder(featvecs, delta_pointfeats, delta_points)
-            delta_base_values = delta_global_values + delta_local_values
-        elif(self.exp_name == 'd2im'):
+        delta_uv, _, _ = self.project_points_to_pixels(delta_points, transmat)
+        if(self.exp_name == 'd2im'):
             delta_base_values = self.im_decoder(featvecs, delta_points)
             
         front_weights = 0.5-0.5*torch.sign(delta_base_values - base_values)
 
-        pred_front_disp = pred_disp[:,0,:,:].unsqueeze(1)
-        pred_back_disp = pred_disp[:,1,:,:].unsqueeze(1)
-        pred_point_front_disp = self.project_featmap_by_px(gt_pixels, pred_front_disp)
-        pred_point_back_disp = self.project_featmap_by_px(gt_pixels, pred_back_disp)
-        final_values = base_values + pred_point_front_disp*front_weights + pred_point_back_disp*(1-front_weights)
+        pred_disp_front = pred_disp[:,0,:,:].unsqueeze(1)
+        pred_disp_back = pred_disp[:,1,:,:].unsqueeze(1)
+        pred_point_disp_front = self.project_featmap_by_uv(uv, [pred_disp_front])
+        pred_point_disp_back = self.project_featmap_by_uv(uv, [pred_disp_back])
+        final_values = base_values + pred_point_disp_front*front_weights + pred_point_disp_back*(1-front_weights)
         
         return final_values

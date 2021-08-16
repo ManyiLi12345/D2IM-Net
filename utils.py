@@ -30,11 +30,11 @@ def get_args():
     parser.add_argument('--exp_name', type=str, default='d2im')
     
     parser.add_argument('--data_dir', default='/local-scratch/manyi/SVR_detail/data/DISN_split/')
-    parser.add_argument('--h5_dir', default='/local-scratch/manyi/SVR_detail/data/SDF_withGradient_v1/')
+    parser.add_argument('--h5_dir', default='/local-scratch/manyi/SVR_detail/data/SDF_withGradient/')
     parser.add_argument('--density_dir', default='/local-scratch/manyi/SVR_detail/data/SDF_density/')
     parser.add_argument('--cam_dir', default='/local-scratch/manyi/SVR_detail/data/image/')
     parser.add_argument('--image_dir', default='/local-scratch/manyi/SVR_detail/data/image/')
-    parser.add_argument('--normal_dir', default='/local-scratch/manyi/SVR_detail/data/normal/')
+    parser.add_argument('--normal_dir', default='/local-scratch/manyi/SVR_detail/data/normal_processed/')
     
     parser.add_argument('--model_dir', default='./ckpt/models')
     parser.add_argument('--output_dir', default='./ckpt/outputs')

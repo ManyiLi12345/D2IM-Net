@@ -23,7 +23,7 @@ To change the default settings, please see utils.py.
 
 During training, it saves the reconstructions of some selected images with GT camera after every a few epochs, in "./ckpt/outputs/".
 
-The test script is to reconstruct from the input image with inferred camera. Before testing, please make sure the trained models, including camera model and D2IM model, are in the './ckpt/models/'. We provide our pre-trained model [here](https://drive.google.com/drive/folders/1UMNDy_NA9bKqe6T_xcTnxRMiea4neWw-?usp=sharing).
+The test script is to reconstruct from the input image with inferred camera. Before testing, please make sure the trained models, including camera model and D2IM model, are in the './ckpt/models/'. We provide our pre-trained model [here](https://drive.google.com/drive/folders/1UMNDy_NA9bKqe6T_xcTnxRMiea4neWw-?usp=sharing) (Please note that we follow the DISN train/test split in our training, which may be modified for comparison with other methods.).
 
 
 ## Citation
